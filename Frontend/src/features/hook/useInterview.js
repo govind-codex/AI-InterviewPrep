@@ -73,7 +73,7 @@
 
 import { getAllInterviewReports, generateInterviewReport, getInterviewReportById } from "../interview/services/interview.api.js"
 import { useCallback, useContext } from "react"
-import { InterviewContext } from "../interview/interview.context.jsx"
+import { InterviewContext } from "../interview/interview-context"
 
 export const useInterview = () => {
 

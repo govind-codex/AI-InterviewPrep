@@ -3,7 +3,8 @@ import axios from 'axios';
 const localApiHost = window.location.hostname === '127.0.0.1'
   ? 'http://127.0.0.1:5001'
   : 'http://localhost:5001';
-const baseURL = (import.meta.env.VITE_API_BASE_URL || localApiHost).replace(/\/$/, '');
+const defaultApiHost = import.meta.env.DEV ? localApiHost : window.location.origin;
+const baseURL = (import.meta.env.VITE_API_BASE_URL || defaultApiHost).replace(/\/$/, '');
 
 const api = axios.create({
   baseURL,

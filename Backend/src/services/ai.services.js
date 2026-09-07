@@ -2,9 +2,20 @@ const { GoogleGenAI } = require("@google/genai")
 const { z } = require("zod")
 const { zodToJsonSchema } = require("zod-to-json-schema")
 
-const ai = new GoogleGenAI({
-    apiKey: process.env.GOOGLE_GENAI_API_KEY
-})
+let ai;
+
+function getAIClient() {
+    const apiKey = process.env.GOOGLE_GENAI_API_KEY;
+    if (!apiKey) {
+        throw new Error('Missing GOOGLE_GENAI_API_KEY environment variable');
+    }
+
+    if (!ai) {
+        ai = new GoogleGenAI({ apiKey });
+    }
+
+    return ai;
+}
 
 // async function invokeGeminiAI(){
 //     const response = await ai.models.generateContent({
@@ -139,7 +150,7 @@ async function generateInterViewReport({ resume, selfDescription, jobDescription
         ],
     }
 
-    const response = await ai.models.generateContent({
+    const response = await getAIClient().models.generateContent({
         model: "gemini-2.5-flash",
         contents: [{
             role: "user",

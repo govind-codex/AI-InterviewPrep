@@ -1,7 +1,6 @@
-import { createContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { getMe } from "./services/auth.api";
-
-export const AuthContext = createContext()
+import { AuthContext } from "./auth-context";
 
 export const AuthProvider = ({children}) => {
     const [user, setUser] = useState(null)
@@ -16,7 +15,7 @@ export const AuthProvider = ({children}) => {
                 if (isMounted) {
                     setUser(data?.user ?? null);
                 }
-            } catch (error) {
+            } catch {
                 if (isMounted) {
                     setUser(null);
                 }

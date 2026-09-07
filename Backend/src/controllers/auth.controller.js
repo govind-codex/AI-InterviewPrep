@@ -12,7 +12,7 @@ function getCookieOptions() {
 
     return {
         httpOnly: true,
-        sameSite: isProduction ? 'none' : 'lax',
+        sameSite: 'lax',
         secure: isProduction,
         path: '/',
     };

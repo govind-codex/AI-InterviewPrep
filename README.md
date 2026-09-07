@@ -275,7 +275,7 @@ MONGO_URI=your_mongodb_connection_string
 
 JWT_SECRET=your_jwt_secret
 
-GEMINI_API_KEY=your_gemini_api_key
+GOOGLE_GENAI_API_KEY=your_google_genai_api_key
 
 
 Start the development server:
@@ -325,7 +325,7 @@ http://localhost:5173
 | `PORT`           | Backend server port                   |
 | `MONGO_URI`      | MongoDB Atlas connection URI          |
 | `JWT_SECRET`     | Secret used for authentication tokens |
-| `GEMINI_API_KEY` | API key used for AI analysis          |
+| `GOOGLE_GENAI_API_KEY` | API key used for AI analysis     |
 
 > ⚠️ Never commit your `.env` file or API keys to GitHub.
 
@@ -412,6 +412,14 @@ AI InterviewPrep creates a strategy based on:
 ```text
 YOUR EXPERIENCE × JOB REQUIREMENTS × AI ANALYSIS
 ```
+
+---
+
+## Deploy to Vercel
+
+This repository includes a root Vercel configuration for the Vite frontend and
+Express API. See [DEPLOYMENT.md](./DEPLOYMENT.md) for the required environment
+variables and deployment checklist.
 
 ---
 

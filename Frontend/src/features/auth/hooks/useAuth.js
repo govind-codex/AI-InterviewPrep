@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import { AuthContext } from "../auth.context";
+import { AuthContext } from "../auth-context";
 import { login, register, logout } from "../services/auth.api";
 
 export const useAuth = () => {
@@ -43,7 +43,7 @@ export const useAuth = () => {
   const handlelogout = async () => {
     setloading(true)
     try {
-      const data = await logout()
+      await logout()
       localStorage.removeItem('token')
       setUser(null)
       return true
