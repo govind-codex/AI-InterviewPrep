@@ -2,6 +2,7 @@ import React from 'react'
 import { useNavigate, Link } from 'react-router'
 import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
+import { validateRegister } from '../auth.validation'
 import '../auth.form.scss'
 
 
@@ -11,31 +12,19 @@ const Register = () => {
     const [username, setUsername] = useState('')
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
+    const [confirmPassword, setConfirmPassword] = useState('')
     const [errors, setErrors] = useState({})
     const [formError, setFormError] = useState('')
+    const [submitting, setSubmitting] = useState(false)
 
     const { loading , handleRegister } = useAuth()
     const validateForm = () => {
-        const nextErrors = {}
-        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-        if (!username.trim()) {
-            nextErrors.username = 'Username is required.'
-        } else if (username.trim().length < 3) {
-            nextErrors.username = 'Username must be at least 3 characters.'
-        }
-
-        if (!email.trim()) {
-            nextErrors.email = 'Email is required.'
-        } else if (!emailPattern.test(email.trim())) {
-            nextErrors.email = 'Enter a valid email address.'
-        }
-
-        if (!password) {
-            nextErrors.password = 'Password is required.'
-        } else if (password.length < 6) {
-            nextErrors.password = 'Password must be at least 6 characters.'
-        }
+        const nextErrors = validateRegister({
+            username,
+            email,
+            password,
+            confirmPassword,
+        })
 
         setErrors(nextErrors)
         return Object.keys(nextErrors).length === 0
@@ -49,11 +38,22 @@ const Register = () => {
             return
         }
 
-        const success = await handleRegister({ username, email, password })
-        if (success) {
-            navigate("/login")
-        } else {
-            setFormError('Registration failed. Please try a different email or username.')
+        setSubmitting(true)
+        try {
+            const result = await handleRegister({
+                username: username.trim(),
+                email: email.trim().toLowerCase(),
+                password,
+            })
+            if (result.ok) {
+                navigate("/home", { replace: true })
+                return
+            }
+
+            setErrors(result.errors)
+            setFormError(result.message)
+        } finally {
+            setSubmitting(false)
         }
     }
 
@@ -88,8 +88,8 @@ const Register = () => {
                 <span className="auth-kicker">Register</span>
                 <h2>Create your account</h2>
                 <p className="auth-subtitle">Set up your profile and start preparing with AI Resume.</p>
-                {formError && <p className="auth-alert">{formError}</p>}
-                <form onSubmit={handleSubmit}>
+                {formError && <p className="auth-alert" role="alert" aria-live="polite">{formError}</p>}
+                <form onSubmit={handleSubmit} noValidate aria-busy={submitting}>
                     <div className="input-group">
                         <label htmlFor="username">Username</label>
                         <input 
@@ -98,6 +98,8 @@ const Register = () => {
                             name="username" 
                             placeholder='Enter your username' 
                             value={username}
+                            autoComplete="username"
+                            disabled={submitting}
                             onChange={(e) => {
                                 setUsername(e.target.value)
                                 setErrors((current) => ({ ...current, username: '' }))
@@ -115,6 +117,8 @@ const Register = () => {
                             name="email" 
                             placeholder='Enter your email' 
                             value={email}
+                            autoComplete="email"
+                            disabled={submitting}
                             onChange={(e) => {
                                 setEmail(e.target.value)
                                 setErrors((current) => ({ ...current, email: '' }))
@@ -132,6 +136,8 @@ const Register = () => {
                             name="password" 
                             placeholder='Enter your password' 
                             value={password}
+                            autoComplete="new-password"
+                            disabled={submitting}
                             onChange={(e) => {
                                 setPassword(e.target.value)
                                 setErrors((current) => ({ ...current, password: '' }))
@@ -140,8 +146,32 @@ const Register = () => {
                             aria-describedby={errors.password ? 'password-error' : undefined}
                         />
                         {errors.password && <small className="field-error" id="password-error">{errors.password}</small>}
+                        <small className="password-hint">Use 8-72 characters with uppercase, lowercase, and a number.</small>
                     </div>
-                    <button className='auth-submit'>Register</button>
+                    <div className="input-group">
+                        <label htmlFor="confirm-password">Confirm password</label>
+                        <input
+                            type="password"
+                            id="confirm-password"
+                            name="confirmPassword"
+                            placeholder="Enter your password again"
+                            value={confirmPassword}
+                            autoComplete="new-password"
+                            disabled={submitting}
+                            onChange={(e) => {
+                                setConfirmPassword(e.target.value)
+                                setErrors((current) => ({ ...current, confirmPassword: '' }))
+                            }}
+                            aria-invalid={Boolean(errors.confirmPassword)}
+                            aria-describedby={errors.confirmPassword ? 'confirm-password-error' : undefined}
+                        />
+                        {errors.confirmPassword && (
+                            <small className="field-error" id="confirm-password-error">{errors.confirmPassword}</small>
+                        )}
+                    </div>
+                    <button className='auth-submit' type="submit" disabled={submitting}>
+                        {submitting ? <><span className="button-spinner" aria-hidden="true" />Creating account...</> : 'Create account'}
+                    </button>
                 </form>
                 <p className="auth-switch">Already have an account? <Link to="/login">Login</Link></p>
             </section>

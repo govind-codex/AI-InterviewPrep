@@ -3,6 +3,7 @@ import { useState } from 'react'
 import '../auth.form.scss'
 import { useNavigate, Link } from 'react-router'
 import { useAuth } from '../hooks/useAuth'
+import { validateLogin } from '../auth.validation'
 
 const Login = () => {
 
@@ -13,22 +14,10 @@ const Login = () => {
     const [password, setPassword] = useState('')
     const [errors, setErrors] = useState({})
     const [formError, setFormError] = useState('')
+    const [submitting, setSubmitting] = useState(false)
 
     const validateForm = () => {
-        const nextErrors = {}
-        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-        if (!email.trim()) {
-            nextErrors.email = 'Email is required.'
-        } else if (!emailPattern.test(email.trim())) {
-            nextErrors.email = 'Enter a valid email address.'
-        }
-
-        if (!password) {
-            nextErrors.password = 'Password is required.'
-        } else if (password.length < 6) {
-            nextErrors.password = 'Password must be at least 6 characters.'
-        }
+        const nextErrors = validateLogin({ email, password })
 
         setErrors(nextErrors)
         return Object.keys(nextErrors).length === 0
@@ -42,11 +31,21 @@ const Login = () => {
             return
         }
 
-        const success = await handleLogin({ email, password })
-        if (success) {
-            navigate("/home")
-        } else {
-            setFormError('Login failed. Please check your email and password.')
+        setSubmitting(true)
+        try {
+            const result = await handleLogin({
+                email: email.trim().toLowerCase(),
+                password,
+            })
+            if (result.ok) {
+                navigate("/home", { replace: true })
+                return
+            }
+
+            setErrors(result.errors)
+            setFormError(result.message)
+        } finally {
+            setSubmitting(false)
         }
     }
 
@@ -81,8 +80,8 @@ const Login = () => {
             <span className="auth-kicker">Login</span>
             <h2>Sign in to your account</h2>
             <p className="auth-subtitle">Use your email and password to open your planner.</p>
-            {formError && <p className="auth-alert">{formError}</p>}
-            <form onSubmit={handleSubmit}>
+            {formError && <p className="auth-alert" role="alert" aria-live="polite">{formError}</p>}
+            <form onSubmit={handleSubmit} noValidate aria-busy={submitting}>
                 <div className="input-group">
                     <label htmlFor="email">Email</label>
                     <input
@@ -91,6 +90,8 @@ const Login = () => {
                             setErrors((current) => ({ ...current, email: '' }))
                         }}
                         value={email}
+                        autoComplete="email"
+                        disabled={submitting}
                         type="email"
                         id="email"
                         name="email"
@@ -108,6 +109,8 @@ const Login = () => {
                             setErrors((current) => ({ ...current, password: '' }))
                         }}
                         value={password}
+                        autoComplete="current-password"
+                        disabled={submitting}
                         type="password"
                         id="password"
                         name="password"
@@ -117,7 +120,9 @@ const Login = () => {
                     />
                     {errors.password && <small className="field-error" id="password-error">{errors.password}</small>}
                 </div>
-                <button className='auth-submit'>Login</button>
+                <button className='auth-submit' type="submit" disabled={submitting}>
+                    {submitting ? <><span className="button-spinner" aria-hidden="true" />Signing in...</> : 'Sign in'}
+                </button>
             </form>
             <p className="auth-switch">Don't have an account? <Link to="/register">Register</Link></p>
         </section>

@@ -9,8 +9,8 @@
     transition: all 0.2s ease-in-out;
 
     &.primary-button{
-        background-color: #e1034d;
-        color: whitesmoke;
+        background-color: var(--color-ink);
+        color: var(--color-white);
 
         &:active{
             transform: scale(1.1);

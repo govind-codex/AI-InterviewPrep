@@ -14,10 +14,14 @@ export const AuthProvider = ({children}) => {
                 const data = await getMe();
                 if (isMounted) {
                     setUser(data?.user ?? null);
+                    if (!data?.user) {
+                        localStorage.removeItem('token');
+                    }
                 }
             } catch {
                 if (isMounted) {
                     setUser(null);
+                    localStorage.removeItem('token');
                 }
             } finally {
                 if (isMounted) {

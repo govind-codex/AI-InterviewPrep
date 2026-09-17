@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import '../style/interview.scss'
 import { useInterview } from '../../hook/useInterview.js'
 import { useAuth } from '../../auth/hooks/useAuth.js'
+import { getPreparationPlan } from '../utils/preparationPlan.js'
+import { useTheme } from '../../theme/hooks/useTheme.js'
 
 const sectionCopy = {
   technical: {
@@ -75,6 +77,7 @@ const Interview = () => {
   const stateReport = location.state?.interviewData
   const { report, reports, getReportById, getReports, loading } = useInterview()
   const { user, handlelogout, loading: authLoading } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const [activeSection, setActiveSection] = useState('technical')
   const [profileOpen, setProfileOpen] = useState(false)
   const [loadedInterviewId, setLoadedInterviewId] = useState(stateReport ? interviewId : null)
@@ -136,7 +139,7 @@ const Interview = () => {
     {
       key: 'roadmap',
       label: 'Roadmap',
-      items: interviewData?.preperationPlan ?? interviewData?.preparationPlan ?? []
+      items: getPreparationPlan(interviewData)
     }
   ]), [interviewData])
 
@@ -290,6 +293,21 @@ const Interview = () => {
           </Link>
         </nav>
 
+        <button
+          className="theme-switch profile-theme-switch"
+          type="button"
+          onClick={toggleTheme}
+          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+        >
+          <span>
+            <strong>Appearance</strong>
+            <small>{theme === 'dark' ? 'Dark theme' : 'Light theme'}</small>
+          </span>
+          <span className={`theme-switch-track ${theme === 'dark' ? 'active' : ''}`} aria-hidden="true">
+            <i />
+          </span>
+        </button>
+
         <button className="profile-logout" type="button" onClick={logoutUser} disabled={authLoading}>
           {authLoading ? 'Signing out...' : 'Sign out'}
         </button>
@@ -382,9 +400,18 @@ const Interview = () => {
               {activeSectionData.items.map((item, index) => (
                 <article className="roadmap-card" key={`${item.day}-${index}`} style={{ '--delay': `${index * 60}ms` }}>
                   <div className="roadmap-day"><span>Day</span><strong>{item.day}</strong></div>
-                  <div>
+                  <div className="roadmap-content">
                     <span className="question-type">Preparation focus</span>
-                    <p>{item.task}</p>
+                    <h3>{item.focus || `Day ${item.day} preparation`}</h3>
+                    {Array.isArray(item.tasks) && item.tasks.length > 0 ? (
+                      <ul>
+                        {item.tasks.map((task, taskIndex) => (
+                          <li key={`${task}-${taskIndex}`}>{task}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p>{item.task}</p>
+                    )}
                   </div>
                 </article>
               ))}

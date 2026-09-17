@@ -1,5 +1,7 @@
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
+import { useAuth } from '../../auth/hooks/useAuth.js'
+import { useTheme } from '../../theme/hooks/useTheme.js'
 import "../style/home.scss"
 
 const features = [
@@ -43,6 +45,37 @@ const faqs = [
 
 const Landing = () => {
   const [openFaq, setOpenFaq] = useState(0)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const profileRef = useRef(null)
+  const { user, loading: authLoading, handlelogout } = useAuth()
+  const { theme, toggleTheme } = useTheme()
+  const username = user?.username?.trim() || 'Candidate'
+  const userInitial = username.charAt(0).toUpperCase()
+
+  useEffect(() => {
+    if (!profileOpen) return
+
+    const closeProfile = (event) => {
+      if (event.key === 'Escape' || !profileRef.current?.contains(event.target)) {
+        setProfileOpen(false)
+      }
+    }
+
+    document.addEventListener('keydown', closeProfile)
+    document.addEventListener('pointerdown', closeProfile)
+    return () => {
+      document.removeEventListener('keydown', closeProfile)
+      document.removeEventListener('pointerdown', closeProfile)
+    }
+  }, [profileOpen])
+
+  const signOut = async () => {
+    setSigningOut(true)
+    const success = await handlelogout()
+    if (success) setProfileOpen(false)
+    setSigningOut(false)
+  }
 
   return (
     <main className="landing-page">
@@ -58,10 +91,69 @@ const Landing = () => {
           <a href="#faq">FAQ</a>
         </div>
 
-        <div className="landing-auth">
-          <Link className="login-link" to="/login">Login</Link>
-          <Link className="register-link" to="/register">Register</Link>
-        </div>
+        {authLoading ? (
+          <div className="landing-profile-skeleton" aria-label="Loading account" />
+        ) : user ? (
+          <div className="landing-profile" ref={profileRef}>
+            <button
+              className="landing-profile-trigger"
+              type="button"
+              onClick={() => setProfileOpen((current) => !current)}
+              aria-haspopup="menu"
+              aria-expanded={profileOpen}
+            >
+              <span className="landing-profile-avatar">{userInitial}</span>
+              <span className="landing-profile-label">
+                <small>Welcome back</small>
+                <strong>{username}</strong>
+              </span>
+              <span className={`profile-chevron ${profileOpen ? 'open' : ''}`} aria-hidden="true">⌄</span>
+            </button>
+
+            <div className={`landing-profile-menu ${profileOpen ? 'open' : ''}`} role="menu">
+              <div className="landing-profile-summary">
+                <span className="landing-profile-avatar large-avatar">{userInitial}</span>
+                <div>
+                  <strong>{username}</strong>
+                  <small>{user.email}</small>
+                </div>
+              </div>
+              <div className="landing-profile-menu-links">
+                <Link to="/home" role="menuitem" onClick={() => setProfileOpen(false)}>
+                  <span><strong>Interview planner</strong><small>Create a new strategy</small></span>
+                  <b aria-hidden="true">›</b>
+                </Link>
+                <Link to="/interview" role="menuitem" onClick={() => setProfileOpen(false)}>
+                  <span><strong>My reports</strong><small>Open saved interview plans</small></span>
+                  <b aria-hidden="true">›</b>
+                </Link>
+              </div>
+              <button
+                className="theme-switch"
+                type="button"
+                role="menuitem"
+                onClick={toggleTheme}
+                aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+              >
+                <span>
+                  <strong>Appearance</strong>
+                  <small>{theme === 'dark' ? 'Dark theme' : 'Light theme'}</small>
+                </span>
+                <span className={`theme-switch-track ${theme === 'dark' ? 'active' : ''}`} aria-hidden="true">
+                  <i />
+                </span>
+              </button>
+              <button className="landing-signout" type="button" onClick={signOut} disabled={signingOut}>
+                {signingOut ? 'Signing out...' : 'Sign out'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="landing-auth">
+            <Link className="login-link" to="/login">Login</Link>
+            <Link className="register-link" to="/register">Register</Link>
+          </div>
+        )}
       </nav>
 
       <section className="landing-hero" id="top">
@@ -74,8 +166,22 @@ const Landing = () => {
           </p>
 
           <div className="landing-actions">
-            <Link className="register-link large" to="/register">Get started</Link>
-            <Link className="login-link large" to="/login">Login</Link>
+            {user ? (
+              <>
+                <Link className="register-link large" to="/home">Open planner</Link>
+                <Link className="login-link large" to="/interview">My reports</Link>
+              </>
+            ) : (
+              <>
+                <Link className="register-link large" to="/register">Get started</Link>
+                <Link className="login-link large" to="/login">Login</Link>
+              </>
+            )}
+          </div>
+
+          <div className="landing-assurances" aria-label="Product assurances">
+            <span><i aria-hidden="true">✓</i> Personalized to your role</span>
+            <span><i aria-hidden="true">✓</i> Reports saved privately</span>
           </div>
 
           <div className="landing-stats" aria-label="Product highlights">
@@ -169,22 +275,35 @@ const Landing = () => {
           <h2>Questions before you start?</h2>
           {faqs.map((faq, index) => (
             <article className={`landing-faq ${openFaq === index ? 'open' : ''}`} key={faq.question}>
-              <button onClick={() => setOpenFaq(openFaq === index ? -1 : index)}>
+              <button
+                onClick={() => setOpenFaq(openFaq === index ? -1 : index)}
+                aria-expanded={openFaq === index}
+                aria-controls={`landing-faq-answer-${index}`}
+              >
                 <span>{faq.question}</span>
                 <strong>{openFaq === index ? '-' : '+'}</strong>
               </button>
-              <p>{faq.answer}</p>
+              <p id={`landing-faq-answer-${index}`}>{faq.answer}</p>
             </article>
           ))}
         </div>
 
         <div className="final-cta">
           <span className="landing-kicker">Start now</span>
-          <h2>Login or register to create your first interview strategy.</h2>
-          <p>Your planner is private and opens after authentication.</p>
+          <h2>{user ? 'Your next interview strategy is one click away.' : 'Login or register to create your first interview strategy.'}</h2>
+          <p>{user ? 'Continue in your private planner or revisit a saved report.' : 'Your planner is private and opens after authentication.'}</p>
           <div className="landing-actions">
-            <Link className="register-link large" to="/register">Register</Link>
-            <Link className="login-link large" to="/login">Login</Link>
+            {user ? (
+              <>
+                <Link className="register-link large" to="/home">Open planner</Link>
+                <Link className="login-link large" to="/interview">View reports</Link>
+              </>
+            ) : (
+              <>
+                <Link className="register-link large" to="/register">Register</Link>
+                <Link className="login-link large" to="/login">Login</Link>
+              </>
+            )}
           </div>
         </div>
       </section>
