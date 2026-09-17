@@ -1,5 +1,4 @@
 const jwt = require('jsonwebtoken');
-const blackListModel = require('../models/blacklist.model');
 const tokenBlackListModel = require('../models/blacklist.model');
 
 function getJwtSecret() {

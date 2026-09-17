@@ -1,26 +1,33 @@
 const pdfParse = require('pdf-parse');
 const { generateInterViewReport } = require('../services/ai.services.js');
+const { getPreparationPlan } = require('../services/preparation-plan.service.js');
 const interViewReportModel = require('../models/interviewReport.model.js');
 
 /**
  * @desc Generate an interview report based on the candidate's resume, self-description, and the job description.
  *  */
 async function generateInterViewReportController(req, res) {
-    const resumeContent = await (new pdfParse.PDFParse(Uint8Array.from(req.file.buffer))).getText()
+    let resumeText = '';
+    if (req.file?.buffer) {
+        const resumeContent = await (new pdfParse.PDFParse(Uint8Array.from(req.file.buffer))).getText();
+        resumeText = resumeContent.text;
+    }
+
     const { selfDescription, jobDescription } = req.body;
     const interViewReportByAi = await generateInterViewReport({
-        resume: resumeContent.text,
+        resume: resumeText,
         selfDescription,
         jobDescription
     });
-    // console.log(interViewReportByAi);
+    const preparationPlan = getPreparationPlan(interViewReportByAi);
     const interViewReport = await interViewReportModel.create({
         user: req.user.id,
-        resume: resumeContent.text,
+        resume: resumeText,
         selfDescription,
         jobDescription,
         title: interViewReportByAi.title || "Unknown Position",
-        ...interViewReportByAi
+        ...interViewReportByAi,
+        preparationPlan,
     })
     res.status(201).json({
         message: "Interview report generated successfully",
@@ -45,6 +52,12 @@ async function getInterviewReportByIdController(req, res) {
             message: "Interview report not found"
         })
     }
+
+    if (!interViewReport.preparationPlan?.length) {
+        interViewReport.preparationPlan = getPreparationPlan(interViewReport.toObject());
+        await interViewReport.save();
+    }
+
     res.status(200).json({
         message: "Interview report fetched successfully",
         interViewReport
@@ -56,7 +69,12 @@ async function getInterviewReportByIdController(req, res) {
  * @desc Get all interview reports of the authenticated user.
  */
 async function getAllInterviewReportsController(req, res) {
-    const interViewReports = await (await interViewReportModel.find({ user: req.user.id })).sort({ createdAt: -1 }).select("-resume -selfDescription -jobDescription -__v -technicalQuestions -behavioralQuestions -skillGaps -preparationPlan") 
+    const interViewReports = await interViewReportModel
+        .find({ user: req.user.id })
+        .sort({ createdAt: -1 })
+        .select("-resume -selfDescription -jobDescription -__v -technicalQuestions -behavioralQuestions -skillGaps -preparationPlan")
+        .lean();
+
     res.status(200).json({
         message: "Interview reports fetched successfully",
         interViewReports

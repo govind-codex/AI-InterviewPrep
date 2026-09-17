@@ -1,6 +1,5 @@
 const { GoogleGenAI } = require("@google/genai")
 const { z } = require("zod")
-const { zodToJsonSchema } = require("zod-to-json-schema")
 
 let ai;
 
@@ -54,7 +53,8 @@ const interviewReportSchema = z.object({
 
 async function generateInterViewReport({ resume, selfDescription, jobDescription }) {
 
-    const prompt = `Generate an interview report for a candidate with the following details:
+    const prompt = `Generate an interview report for a candidate with the following details.
+                    The preparationPlan must contain 5 to 7 practical, sequential study days and must never be empty.
                     Resume: ${resume}
                     Self Description: ${selfDescription}
                     Job Description: ${jobDescription}`
@@ -162,7 +162,12 @@ async function generateInterViewReport({ resume, selfDescription, jobDescription
         }
     })
 
-    return JSON.parse(response.text);
+    const parsedResponse = interviewReportSchema.safeParse(JSON.parse(response.text));
+    if (!parsedResponse.success) {
+        throw new Error('The AI returned an invalid interview report. Please try again.');
+    }
+
+    return parsedResponse.data;
     // console.log(JSON.parse(response.text))
     // console.log("RAW RESPONSE:\n", response.text)
 }

@@ -18,6 +18,22 @@ function getCookieOptions() {
     };
 }
 
+function getPublicUser(user) {
+    return {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+    };
+}
+
+function createToken(user, jwtSecret) {
+    return jwt.sign(
+        { id: user._id, username: user.username },
+        jwtSecret,
+        { expiresIn: '1d' }
+    );
+}
+
 /**
  * @name registerUserController
  * @description register a new user, expecting username, email and password in the request body
@@ -26,35 +42,48 @@ function getCookieOptions() {
 
 async function registerUserController(req, res) {
     const { username, email, password } = req.body;
-    if (!username || !email || !password) {
-        return res.status(400).json({ message: 'please provide username, email and password' });
+    const jwtSecret = getJwtSecret();
+    if (!jwtSecret) {
+        return res.status(500).json({ message: 'Authentication is temporarily unavailable.' });
     }
-    const isUserAlreadyExists = await userModel.findOne({ $or: [{ username }, { email }] });
+
+    const isUserAlreadyExists = await userModel
+        .findOne({ $or: [{ username }, { email }] })
+        .collation({ locale: 'en', strength: 2 });
     if (isUserAlreadyExists) {
-        return res.status(400).json({ message: 'user already exists' });
+        const emailExists = isUserAlreadyExists.email.toLowerCase() === email;
+        return res.status(409).json({
+            message: emailExists
+                ? 'An account with this email already exists.'
+                : 'This username is already taken.',
+            errors: emailExists
+                ? { email: 'An account with this email already exists.' }
+                : { username: 'This username is already taken.' },
+        });
     }
 
     const hash = await bcrypt.hash(password, 10);
-    const user = await userModel.create({ username, email, password: hash });
-    const jwtSecret = getJwtSecret();
-    if (!jwtSecret) {
-        return res.status(500).json({ message: 'server misconfigured: JWT secret is missing' });
+    let user;
+    try {
+        user = await userModel.create({ username, email, password: hash });
+    } catch (error) {
+        if (error?.code === 11000) {
+            const field = error.keyPattern?.email ? 'email' : 'username';
+            const message = field === 'email'
+                ? 'An account with this email already exists.'
+                : 'This username is already taken.';
+            return res.status(409).json({ message, errors: { [field]: message } });
+        }
+        throw error;
     }
-    const token = jwt.sign(
-        { id: user._id, username: user.username },
-        jwtSecret,
-        { expiresIn: '1h' }
-    );
-    res.cookie('token', token, getCookieOptions())
+
+    const token = createToken(user, jwtSecret);
+    res.cookie('token', token, getCookieOptions());
 
     res.status(201).json({ 
-        message: 'user registered successfully', 
+        message: 'Account created successfully.',
         token,
-        user: {
-            id: user._id,
-            username: user.username,
-            email: user.email
-        }
+        user: getPublicUser(user),
     });
 }
 
@@ -66,32 +95,28 @@ async function registerUserController(req, res) {
 
 async function loginUserController(req, res) {
     const { email, password } = req.body;
-    const user = await userModel.findOne({email});
+    const jwtSecret = getJwtSecret();
+    if (!jwtSecret) {
+        return res.status(500).json({ message: 'Authentication is temporarily unavailable.' });
+    }
+
+    const user = await userModel
+        .findOne({ email })
+        .collation({ locale: 'en', strength: 2 });
     if (!user) {
-        return res.status(400).json({ message: 'invalid email or password' });
+        return res.status(401).json({ message: 'Email or password is incorrect.' });
     }
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-        return res.status(400).json({ message: 'invalid email or password' });
+        return res.status(401).json({ message: 'Email or password is incorrect.' });
     }
-    const jwtSecret = getJwtSecret();
-    if (!jwtSecret) {
-        return res.status(500).json({ message: 'server misconfigured: JWT secret is missing' });
-    }
-    const token = jwt.sign(
-        { id: user._id, username: user.username },
-        jwtSecret,
-        { expiresIn: '1d' }
-    );
-    res.cookie('token', token, getCookieOptions())
+
+    const token = createToken(user, jwtSecret);
+    res.cookie('token', token, getCookieOptions());
     res.status(200).json({ 
-        message: 'user logged in successfully', 
+        message: 'Signed in successfully.',
         token,
-        user: {
-            id: user._id,
-            username: user.username,
-            email: user.email
-        }
+        user: getPublicUser(user),
     });
 
 }
@@ -102,8 +127,10 @@ async function loginUserController(req, res) {
  * @access public
  */
 async function logoutUserController(req, res) {
-    const token = req.cookies.token;
-    console.log(token);
+    const bearerToken = req.headers.authorization?.startsWith('Bearer ')
+        ? req.headers.authorization.slice(7)
+        : null;
+    const token = req.cookies.token || bearerToken;
     if (token) {
         await tokenBlackListModel.create({ token });
     } 
@@ -118,13 +145,12 @@ async function logoutUserController(req, res) {
  */
 async function getMeController(req,res){
     const user = await userModel.findById(req.user.id)
+    if (!user) {
+        return res.status(401).json({ message: 'Account not found.' });
+    }
     res.status(200).json({
-        message: 'user details fetched successfully',
-        user:{
-            id: user._id,
-            username: user.username,
-            email: user.email
-        }
+        message: 'Account loaded successfully.',
+        user: getPublicUser(user),
     });
 }
 

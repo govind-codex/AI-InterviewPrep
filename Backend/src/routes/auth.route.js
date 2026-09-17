@@ -2,6 +2,7 @@ const express = require('express');
 const authController = require('../controllers/auth.controller');
 const authRouter = express.Router();
 const authMiddleware = require('../middlewares/auth.middleware');
+const authValidator = require('../validators/auth.validator');
 
 /**
 * @route POST /api/auth/register
@@ -9,7 +10,11 @@ const authMiddleware = require('../middlewares/auth.middleware');
 * @access Public
 */
 
-authRouter.post('/register',authController.registerUserController);
+authRouter.post(
+    '/register',
+    authValidator.validateRegister,
+    authController.registerUserController
+);
 
 
 /**
@@ -17,7 +22,11 @@ authRouter.post('/register',authController.registerUserController);
  * @description login a user with email and password
  * @access Public
  */
-authRouter.post('/login', authController.loginUserController);
+authRouter.post(
+    '/login',
+    authValidator.validateLogin,
+    authController.loginUserController
+);
 
 /**
  * @route POST /api/auth/logout
